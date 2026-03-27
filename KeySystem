@@ -4,7 +4,7 @@
     ════════════════════════════════════════════════════════
 ]]
 
-local DATABASE_URL     = "https://raw.githubusercontent.com/USERNAME/REPO/main/keys.json" -- Link Raw JSON kamu
+local DATABASE_URL     = "https://raw.githubusercontent.com/Lyfe-e40d0ba8-d728-4fcf-9e39/KeySystemFlycer/main/keys.json" -- Link Raw JSON kamu
 local DISCORD_LINK     = "https://discord.gg/mpbgVwakjt"
 local SCRIPT_AFTER_KEY = "https://raw.githubusercontent.com/USERNAME/REPO/main/main.lua" -- Script Utama
 
