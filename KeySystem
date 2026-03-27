@@ -1,0 +1,336 @@
+--[[
+    ════════════════════════════════════════════════════════
+    🔥 FLYCER PREMIUM KEY SYSTEM (OPTIMIZED 1 FILE DATABASE)
+    ════════════════════════════════════════════════════════
+]]
+
+local DATABASE_URL     = "https://raw.githubusercontent.com/USERNAME/REPO/main/keys.json" -- Link Raw JSON kamu
+local DISCORD_LINK     = "https://discord.gg/mpbgVwakjt"
+local SCRIPT_AFTER_KEY = "https://raw.githubusercontent.com/USERNAME/REPO/main/main.lua" -- Script Utama
+
+--================================--
+--         ANTI-DUPLIKAT          --
+--================================--
+pcall(function()
+    local existing = game:GetService("CoreGui"):FindFirstChild("PremiumKeyUI")
+    if existing then existing:Destroy() end
+    local existingBlur = game:GetService("Lighting"):FindFirstChild("PremiumKeyBlur")
+    if existingBlur then existingBlur:Destroy() end
+end)
+
+--================================--
+--          SERVICES              --
+--================================--
+local Lighting         = game:GetService("Lighting")
+local TweenService     = game:GetService("TweenService")
+local CoreGui          = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local HttpService      = game:GetService("HttpService")
+local Players          = game:GetService("Players")
+
+--================================--
+--        GET HWID (FORMAT UUID)  --
+--================================--
+local function getHWID()
+    local hwid = "UNKNOWN"
+    
+    -- PRIORITAS 1: RbxAnalyticsService (Menghasilkan format 19e0713e-e45a-4777-acf8-934e2c7d4a50 persis)
+    pcall(function()
+        local RbxAnalytics = game:GetService("RbxAnalyticsService")
+        hwid = tostring(RbxAnalytics:GetClientId())
+    end)
+    
+    -- PRIORITAS 2: gethwid (Fallback jika Prioritas 1 gagal)
+    if hwid == "UNKNOWN" or hwid == "" then
+        pcall(function()
+            if gethwid then hwid = gethwid() end
+        end)
+    end
+    
+    return hwid
+end
+
+--================================--
+--   FORMAT SISA WAKTU CANTIK     --
+--================================--
+local function formatSisaWaktu(totalDetik)
+    if totalDetik <= 0 then return "Sudah Expired" end
+    
+    local hari  = math.floor(totalDetik / 86400)
+    local sisa  = totalDetik % 86400
+    local jam   = math.floor(sisa / 3600)
+    sisa        = sisa % 3600
+    local menit = math.floor(sisa / 60)
+    
+    local hasil = {}
+    if hari > 0 then table.insert(hasil, hari .. " Hari") end
+    if jam > 0 then table.insert(hasil, jam .. " Jam") end
+    if menit > 0 then table.insert(hasil, menit .. " Menit") end
+    if #hasil == 0 then table.insert(hasil, "< 1 Menit") end
+    
+    return table.concat(hasil, " ")
+end
+
+--================================--
+--   VERIFY KEY FROM DATABASE     --
+--================================--
+local function verifyKey(inputKey)
+    -- Download file JSON
+    local success, response = pcall(function()
+        return game:HttpGet(DATABASE_URL .. "?nocache=" .. tostring(tick()))
+    end)
+    
+    if not success then
+        return false, "Gagal terhubung ke database server!"
+    end
+
+    local successDecode, db = pcall(function()
+        return HttpService:JSONDecode(response)
+    end)
+    
+    if not successDecode or type(db) ~= "table" then
+        return false, "Format database tidak valid!"
+    end
+    
+    local playerHWID = getHWID()
+    local keyData = nil
+    
+    -- Cari Key di Database
+    for _, entry in pairs(db) do
+        if entry.key == inputKey then
+            keyData = entry
+            break
+        end
+    end
+    
+    if not keyData then
+        return false, "Key salah atau tidak ditemukan!"
+    end
+    
+    -- Cek HWID
+    if keyData.hwid ~= playerHWID then
+        return false, "HWID tidak cocok! Key ini terdaftar untuk device lain."
+    end
+    
+    -- Cek Lifetime
+    if keyData.type == "lifetime" then
+        return true, "Key Valid! [Lifetime Access]"
+    end
+    
+    -- Cek Durasi (Time-based)
+    if keyData.type == "duration" and keyData.expire_timestamp then
+        local currentTime = os.time()
+        local sisaDetik = keyData.expire_timestamp - currentTime
+        
+        if sisaDetik <= 0 then
+            return false, "Key sudah Expired! Silahkan beli lagi."
+        end
+        
+        local sisaFormatted = formatSisaWaktu(sisaDetik)
+        return true, "Key Valid! Sisa Waktu: " .. sisaFormatted
+    end
+    
+    return false, "Data key rusak (Hubungi Admin)"
+end
+
+--================================--
+--        BLUR LAYAR GLOBAL       --
+--================================--
+local blur = Instance.new("BlurEffect")
+blur.Name = "PremiumKeyBlur"
+blur.Size = 0
+blur.Parent = Lighting
+TweenService:Create(blur, TweenInfo.new(0.5), {Size = 25}):Play()
+
+--================================--
+--          GUI UTAMA             --
+--================================--
+local keyGui = Instance.new("ScreenGui")
+keyGui.Name = "PremiumKeyUI"
+keyGui.IgnoreGuiInset = true
+keyGui.Parent = CoreGui
+
+local bgFrame = Instance.new("Frame", keyGui)
+bgFrame.Size = UDim2.new(0, 430, 0, 300)
+bgFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+bgFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+bgFrame.BackgroundTransparency = 0.3
+bgFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+Instance.new("UICorner", bgFrame).CornerRadius = UDim.new(0, 16)
+local bgStroke = Instance.new("UIStroke", bgFrame)
+bgStroke.Color = Color3.fromRGB(100, 100, 120)
+bgStroke.Transparency = 0.7
+
+local frame = Instance.new("Frame", bgFrame)
+frame.Size = UDim2.new(0.94, 0, 0.93, 0)
+frame.Position = UDim2.new(0.03, 0, 0.035, 0)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -20, 0, 42)
+title.Position = UDim2.new(0, 10, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "👑 Flycer Premium System"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local subtitle = Instance.new("TextLabel", frame)
+subtitle.Size = UDim2.new(1, -30, 0, 16)
+subtitle.Position = UDim2.new(0, 10, 0, 40)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "Masukkan premium key khusus kamu di bawah ini."
+subtitle.TextColor3 = Color3.fromRGB(150, 150, 170)
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextSize = 11
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -36, 0, 10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+closeBtn.Text = "✕"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+closeBtn.TextSize = 14
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
+
+-- TAMPILAN HWID
+local currentHWID = getHWID()
+local displayHWID = string.sub(currentHWID, 1, 30) .. "..."
+local hwidDisplay = Instance.new("TextLabel", frame)
+hwidDisplay.Size = UDim2.new(0.9, 0, 0, 14)
+hwidDisplay.Position = UDim2.new(0.05, 0, 0, 67)
+hwidDisplay.BackgroundTransparency = 1
+hwidDisplay.Text = "🔒 HWID: " .. displayHWID
+hwidDisplay.TextColor3 = Color3.fromRGB(90, 160, 240)
+hwidDisplay.Font = Enum.Font.Code
+hwidDisplay.TextSize = 10
+hwidDisplay.TextXAlignment = Enum.TextXAlignment.Left
+
+local inputContainer = Instance.new("Frame", frame)
+inputContainer.Size = UDim2.new(0.9, 0, 0, 35)
+inputContainer.Position = UDim2.new(0.05, 0, 0, 88)
+inputContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+Instance.new("UICorner", inputContainer).CornerRadius = UDim.new(0, 8)
+local inputStroke = Instance.new("UIStroke", inputContainer)
+inputStroke.Color = Color3.fromRGB(60, 60, 80)
+
+local inputBox = Instance.new("TextBox", inputContainer)
+inputBox.Size = UDim2.new(1, -16, 1, 0)
+inputBox.Position = UDim2.new(0, 8, 0, 0)
+inputBox.BackgroundTransparency = 1
+inputBox.PlaceholderText = "Paste Key Kamu Disini..."
+inputBox.Text = ""
+inputBox.TextSize = 13
+inputBox.Font = Enum.Font.Gotham
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextXAlignment = Enum.TextXAlignment.Left
+inputBox.ClearTextOnFocus = false
+
+local statusLabel = Instance.new("TextLabel", frame)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 28)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 128)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 12
+
+-- FUNGSI MEMBUAT TOMBOL
+local function createButton(text, posX, col1, col2)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(0.28, 0, 0, 38)
+    btn.Position = UDim2.new(posX, 0, 0, 165)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local grad = Instance.new("UIGradient", btn)
+    grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, col1), ColorSequenceKeypoint.new(1, col2)}
+    return btn
+end
+
+local submitBtn   = createButton("🔑 Submit", 0.035, Color3.fromRGB(147, 51, 234), Color3.fromRGB(99, 102, 241))
+local copyHwidBtn = createButton("📋 Copy HWID", 0.355, Color3.fromRGB(59, 130, 246), Color3.fromRGB(29, 78, 216))
+local buyKeyBtn   = createButton("💎 Buy Key", 0.675, Color3.fromRGB(245, 158, 11), Color3.fromRGB(180, 83, 9))
+
+local footer = Instance.new("TextLabel", frame)
+footer.Size = UDim2.new(0.9, 0, 0, 14)
+footer.Position = UDim2.new(0.05, 0, 0, 215)
+footer.BackgroundTransparency = 1
+footer.Text = "📌 Copy HWID → Kirim ke Admin → Beli Key → Submit"
+footer.TextColor3 = Color3.fromRGB(100, 100, 120)
+footer.Font = Enum.Font.Gotham
+footer.TextSize = 10
+
+--================================--
+--        LOGIC TOMBOL            --
+--================================--
+local function closeGUI()
+    TweenService:Create(bgFrame, TweenInfo.new(0.5), {Size = UDim2.new(0,0,0,0)}):Play()
+    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
+    task.wait(0.5)
+    keyGui:Destroy()
+    blur:Destroy()
+end
+
+closeBtn.MouseButton1Click:Connect(closeGUI)
+
+copyHwidBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(currentHWID)
+        statusLabel.Text = "📋 HWID berhasil disalin!"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    else
+        statusLabel.Text = "⚠ Executor ini tidak support copy otomatis."
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+    task.delay(3, function() statusLabel.Text = "" end)
+end)
+
+buyKeyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then setclipboard(DISCORD_LINK) end
+    statusLabel.Text = "💎 Link Discord disalin! Buka browser dan paste."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    task.delay(3, function() statusLabel.Text = "" end)
+end)
+
+submitBtn.MouseButton1Click:Connect(function()
+    if inputBox.Text == "" then
+        statusLabel.Text = "⚠ Masukkan key terlebih dahulu!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 150, 0)
+        return
+    end
+
+    statusLabel.Text = "🔄 Mengecek Database..."
+    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+
+    task.spawn(function()
+        local valid, msg = verifyKey(inputBox.Text)
+        if valid then
+            statusLabel.Text = "✅ " .. msg
+            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            task.wait(2)
+            closeGUI()
+            loadstring(game:HttpGet(SCRIPT_AFTER_KEY))()
+        else
+            statusLabel.Text = "❌ " .. msg
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            
+            -- Efek Gemetar
+            local pos = inputContainer.Position
+            for i=1,3 do
+                inputContainer.Position = pos + UDim2.new(0, 5, 0, 0) task.wait(0.04)
+                inputContainer.Position = pos - UDim2.new(0, 5, 0, 0) task.wait(0.04)
+            end
+            inputContainer.Position = pos
+        end
+    end)
+end)
+
+bgFrame.Size = UDim2.new(0,0,0,0)
+TweenService:Create(bgFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 430, 0, 300)}):Play()
